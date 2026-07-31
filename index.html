@@ -451,8 +451,14 @@ function tiles() {
 
   // La conversion es el numero que justifica el asistente: de cada persona que
   // escribio, cuantas terminaron con una visita en el calendario.
+  //
+  // Se divide por PERSONAS que agendaron, no por visitas: una misma persona
+  // puede pedir dos y el subtitulo decia "200% de quienes consultaron", que
+  // aunque la cuenta cerrara se leia como un error. El tope al 100% es por si
+  // aparece una visita cuyo chat no quedo en la base.
+  var quienes = v.personas != null ? v.personas : v.total;
   var conv = (r.clientes > 0 && v.disponible)
-    ? Math.round((v.total / r.clientes) * 100) + '% de quienes consultaron'
+    ? Math.min(100, Math.round((quienes / r.clientes) * 100)) + '% de quienes consultaron'
     : 'por el asistente';
 
   var t = [
