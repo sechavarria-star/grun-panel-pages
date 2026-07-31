@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+/* ---------------------------------------------------------------------------
+   Tokens. El azul de marca (#1668ff) es SOLO cromo: botones, foco, el aro del
+   logo. Los datos usan los pasos validados para superficie oscura -- si se
+   pintan las barras con el azul de marca, deja de estar validado el contraste.
+   --------------------------------------------------------------------------- */
+:root {
+  --bg:            #0a0a0b;
+  --surface-1:     #16161a;
+  --surface-2:     #1e1e23;
+  --border:        #2a2a31;
+  --text-primary:  #ffffff;
+  --text-secondary:#a1a1ad;
+  --text-muted:    #6e6e7a;
+
+  --brand:         #1668ff;
+
+  --series-1:      #3987e5;   /* telegram  */
+  --series-2:      #d95926;   /* whatsapp  */
+  --series-3:      #199e70;   /* instagram */
+
+  --good:          #0ca30c;
+  --warning:       #fab219;
+
+  --r: 10px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+/* El atributo hidden vale display:none, pero cualquier display explicito se lo
+   come. #login es un grid, asi que sin esto la pantalla de ingreso sigue
+   ocupando lugar arriba del panel. */
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+
+/* ---------- logo ---------- */
+.marca { display: flex; align-items: center; gap: 12px; }
+.aro {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2.5px solid var(--brand); background: #000;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 2px; padding-bottom: 13px; flex: none;
+}
+.aro i { display: block; width: 3px; background: #fff; border-radius: 1px; }
+.aro i:nth-child(1) { height: 7px; }
+.aro i:nth-child(2) { height: 11px; }
+.aro i:nth-child(3) { height: 5px; }
+.marca .txt strong {
+  display: block; font-size: 15px; font-weight: 750;
+  letter-spacing: 0.14em; line-height: 1.1;
+}
+.marca .txt span {
+  display: block; font-size: 9.5px; letter-spacing: 0.16em;
+  color: var(--text-muted); text-transform: uppercase;
+}
+
+/* ---------- ingreso ---------- */
+#login { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.card-login {
+  width: 100%; max-width: 380px; background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 14px; padding: 32px 28px;
+}
+.card-login h1 { font-size: 19px; margin: 26px 0 6px; }
+.card-login p { color: var(--text-secondary); font-size: 13.5px; margin: 0 0 22px; }
+label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 7px; }
+input[type=password], input[type=search] {
+  width: 100%; padding: 11px 13px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text-primary); font-size: 15px; font-family: inherit;
+}
+input:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  border-radius: 9px; border: 1px solid transparent; padding: 11px 16px;
+  background: var(--brand); color: #fff;
+}
+button:hover { filter: brightness(1.12); }
+button:disabled { opacity: .55; cursor: default; filter: none; }
+button.ghost {
+  background: transparent; border-color: var(--border);
+  color: var(--text-secondary); padding: 8px 13px; font-size: 13px;
+}
+button.ghost:hover { color: var(--text-primary); border-color: var(--text-muted); filter: none; }
+.error { color: #ff8f8f; font-size: 13px; margin-top: 13px; min-height: 18px; }
+
+/* ---------- estructura ---------- */
+#app { max-width: 1180px; margin: 0 auto; padding: 22px 20px 64px; }
+header.top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding-bottom: 18px;
+  border-bottom: 1px solid var(--border); margin-bottom: 24px;
+}
+.top .acciones { display: flex; align-items: center; gap: 10px; }
+.sello { font-size: 12px; color: var(--text-muted); }
+
+section { margin-bottom: 26px; }
+.titulo { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-muted); margin-bottom: 12px; font-weight: 600; }
+
+.panel {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+}
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .dos { grid-template-columns: 1fr; } }
+
+/* ---------- stat tiles ---------- */
+.tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 620px)  { .tiles { grid-template-columns: repeat(2, 1fr); } }
+.tile {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 15px 16px;
+}
+.tile .n {
+  font-size: 30px; font-weight: 680; letter-spacing: -0.025em;
+  line-height: 1.05; font-variant-numeric: tabular-nums;
+}
+.tile .n small { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-left: 1px; }
+.tile .k { font-size: 12px; color: var(--text-secondary); margin-top: 5px; }
+.tile .sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.tile.destaca { border-color: rgba(22,104,255,.45); }
+
+/* ---------- barras ---------- */
+.barras { display: flex; flex-direction: column; gap: 2px; }
+.fila { padding: 5px 0; }
+.fila .cab {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; margin-bottom: 5px; font-size: 13px;
+}
+.fila .cab b { font-weight: 600; }
+.fila .cab em {
+  font-style: normal; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; font-size: 12.5px;
+}
+.pista { height: 9px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.marca-barra {
+  height: 100%; border-radius: 0 4px 4px 0; min-width: 3px;
+  transition: width .35s ease;
+}
+.punto { width: 9px; height: 9px; border-radius: 3px; display: inline-block;
+  vertical-align: -1px; margin-right: 7px; flex: none; }
+
+/* ---------- heatmap ---------- */
+.heat-wrap { overflow-x: auto; padding-bottom: 4px; }
+.heat { display: grid; grid-template-columns: 34px repeat(24, minmax(21px, 1fr)); gap: 2px; min-width: 620px; }
+.heat .hh { font-size: 9.5px; color: var(--text-muted); text-align: center; padding-bottom: 3px; }
+.heat .dd { font-size: 10.5px; color: var(--text-secondary); display: flex; align-items: center; }
+.celda {
+  aspect-ratio: 1 / 1; border-radius: 3px; background: var(--surface-2);
+  border: 1px solid transparent;
+}
+.celda.v { border-color: rgba(255,255,255,.06); }
+.escala { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+.escala .paso { width: 17px; height: 9px; border-radius: 2px; }
+
+/* ---------- conversaciones ---------- */
+.charla { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+@media (max-width: 860px) { .charla { grid-template-columns: 1fr; } }
+.lista { max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.item {
+  text-align: left; width: 100%; background: transparent; border: 1px solid transparent;
+  border-radius: 9px; padding: 11px 12px; cursor: pointer; color: inherit;
+  font-size: 13px; font-weight: 400; display: block;
+}
+.item:hover { background: var(--surface-2); filter: none; }
+.item[aria-current="true"] { background: var(--surface-2); border-color: rgba(22,104,255,.5); }
+.item .nom { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; }
+.item .meta { color: var(--text-muted); font-size: 11.5px; margin-top: 3px; }
+.item .prev {
+  color: var(--text-secondary); font-size: 12px; margin-top: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hilo { max-height: 520px; overflow-y: auto; padding-right: 4px; }
+/* width:fit-content para que la burbuja se ajuste al texto. Sin esto el div
+   ocupa el 84% completo y un "hola" queda con una barra vacia al lado. */
+.msg { margin-bottom: 12px; max-width: 84%; width: fit-content; }
+.msg.agente { margin-left: auto; }
+.burbuja {
+  padding: 9px 13px; border-radius: 13px; font-size: 13.5px; white-space: pre-wrap;
+  word-break: break-word; background: var(--surface-2);
+}
+.msg.agente .burbuja { background: #17325c; border-top-right-radius: 4px; }
+.msg.cliente .burbuja { border-top-left-radius: 4px; }
+/* overflow-wrap para que una URL larga no ensanche la columna */
+.burbuja a { color: #8ab6f5; overflow-wrap: anywhere; }
+.burbuja a:hover { color: #b7d3f6; }
+.sello-msg { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; }
+.msg.agente .sello-msg { text-align: right; }
+.fuera {
+  display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px;
+  background: rgba(250,178,25,.15); color: var(--warning); font-size: 10px;
+  font-weight: 600; letter-spacing: .02em;
+}
+.vacio { color: var(--text-muted); font-size: 13px; padding: 26px 4px; text-align: center; }
+
+/* ---------- tooltip ---------- */
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+  background: #000; border: 1px solid var(--border); border-radius: 7px;
+  padding: 7px 10px; font-size: 12px; line-height: 1.45; white-space: nowrap;
+  transition: opacity .12s; box-shadow: 0 6px 22px rgba(0,0,0,.6);
+}
+#tip b { font-weight: 650; }
+#tip span { color: var(--text-secondary); }
+
+footer { color: var(--text-muted); font-size: 11.5px; text-align: center; padding-top: 10px; }
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--text-muted);
+  border-top-color: transparent; border-radius: 50%; animation: g 0.7s linear infinite;
+  vertical-align: -2px; margin-right: 7px; }
+@keyframes g { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card-login">
+    <div class="marca">
+      <div class="aro"><i></i><i></i><i></i></div>
+      <div class="txt"><strong>GRUNWALDT</strong><span>Negocios Inmobiliarios</span></div>
+    </div>
+    <h1>Panel de consultas</h1>
+    <p>Lo que respondió el asistente, en tiempo real.</p>
+    <label for="clave">Clave de acceso</label>
+    <input type="password" id="clave" autocomplete="current-password">
+    <div class="error" id="errLogin"></div>
+    <button id="btnEntrar" style="width:100%;margin-top:6px">Entrar</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="marca">
+      <div class="aro"><i></i><i></i><i></i></div>
+      <div class="txt"><strong>GRUNWALDT</strong><span>Panel de consultas</span></div>
+    </div>
+    <div class="acciones">
+      <span class="sello" id="sello"></span>
+      <button class="ghost" id="btnRefrescar">Actualizar</button>
+      <button class="ghost" id="btnSalir">Salir</button>
+    </div>
+  </header>
+
+  <section>
+    <div class="titulo">Resumen</div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="dos">
+    <div class="panel">
+      <div class="titulo">Consultas por canal</div>
+      <div class="barras" id="canales"></div>
+    </div>
+    <div class="panel">
+      <div class="titulo">Propiedades consultadas</div>
+      <div class="barras" id="propiedades"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo">Cuándo escriben</div>
+    <div class="heat-wrap"><div class="heat" id="heat"></div></div>
+    <div class="escala" id="escala"></div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo">Conversaciones</div>
+    <div class="charla">
+      <div>
+        <input type="search" id="buscar" placeholder="Buscar por nombre o propiedad…" style="margin-bottom:10px">
+        <div class="lista" id="lista"></div>
+      </div>
+      <div class="hilo" id="hilo"><div class="vacio">Elegí una conversación para leerla completa.</div></div>
+    </div>
+  </section>
+
+  <footer>Powered by GIWA-IA</footer>
+</div>
+
+<div id="tip"></div>
+
+<script>
+/* ===========================================================================
+   Estado
+   =========================================================================== */
+// Esta pagina NO corre en Apps Script: es HTML estatico servido desde
+// appgrun.giwa-ia.com y le pega directo al webhook de n8n. La clave que tipea
+// el cliente ES la credencial de la API -la valida n8n en "Armar parametros"-,
+// asi que no hay ningun secreto aparte escondido en este archivo.
+var API_URL = 'https://giwa-ia.app.n8n.cloud/webhook/grun-dashboard';
+var CLAVE = null;
+var DATOS = null;
+var ACTIVA = null;
+
+var DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+var ORDEN_DIAS = [1,2,3,4,5,6,0];              // se lee de lunes a domingo
+var COLOR_CANAL = { telegram: 'var(--series-1)', whatsapp: 'var(--series-2)', instagram: 'var(--series-3)' };
+
+// Rampa secuencial azul, de oscuro (casi nada) a claro (mucho). Va en ese
+// sentido porque la superficie es oscura: el paso mas bajo tiene que fundirse
+// con el fondo, no destacarse.
+var RAMPA = ['#184f95','#256abf','#3987e5','#5598e7','#86b6ef','#b7d3f6'];
+
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function num(n) { return Number(n || 0).toLocaleString('es-AR'); }
+function plural(n, sing, plu) { return Number(n) === 1 ? sing : plu; }
+
+/* En la base se guarda el texto CRUDO del agente, con su markdown. Es lo
+   correcto: es lo que el modelo produjo y es lo que vuelve a leer como
+   historial. Cada superficie lo renderiza a su manera — Telegram lo pasa a HTML
+   en "Sanitizar respuesta", y acá lo hacemos para la pantalla.
+   Los links salen primero y vuelven al final: si no, la regla de negrita se
+   come los asteriscos que puedan venir dentro de una URL. */
+function formatear(s) {
+  var t = esc(s);
+  var links = [];
+  t = t.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, function (m, txt, url) {
+    var limpio = txt.trim();
+    var visible = (limpio === url || limpio === url.replace(/\/+$/, '')) ? url : limpio;
+    links.push('<a href="' + url + '" target="_blank" rel="noopener noreferrer">' +
+               visible + '</a>');
+    return '\u0000L' + (links.length - 1) + '\u0000';
+  });
+  t = t.replace(/^[ \t]*[*-][ \t]+/gm, '• ');
+  t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  t = t.replace(/\u0000L(\d+)\u0000/g, function (m, i) { return links[+i]; });
+  return t;
+}
+
+/* ===========================================================================
+   Ingreso
+   =========================================================================== */
+$('btnEntrar').addEventListener('click', entrar);
+$('clave').addEventListener('keydown', function (e) { if (e.key === 'Enter') entrar(); });
+
+/**
+ * Unica llamada a la API. La clave viaja como parametro y la valida n8n;
+ * un 401 es "clave incorrecta". Se pide sin headers propios a proposito:
+ * un GET simple no dispara preflight de CORS.
+ */
+function pedirDatos(clave) {
+  return fetch(API_URL + '?k=' + encodeURIComponent(clave), { cache: 'no-store' })
+    .then(function (r) {
+      if (r.status === 401) {
+        var e = new Error('Clave incorrecta.');
+        e.noAutorizado = true;
+        throw e;
+      }
+      if (!r.ok) {
+        throw new Error('La API respondio ' + r.status +
+                        '. Revisa que el workflow este publicado.');
+      }
+      return r.text().then(function (txt) {
+        try { return JSON.parse(txt); }
+        catch (e) { throw new Error('La API devolvió algo que no se pudo leer.'); }
+      });
+    });
+}
+
+// Entrar y cargar son la misma llamada: si la clave sirve, ya vienen los datos.
+function entrar() {
+  var b = $('btnEntrar');
+  b.disabled = true; b.textContent = 'Verificando…';
+  $('errLogin').textContent = '';
+  var clave = $('clave').value;
+  pedirDatos(clave)
+    .then(function (datos) {
+      CLAVE = clave;
+      try { sessionStorage.setItem('grun_clave', clave); } catch (e) {}
+      $('login').hidden = true;
+      $('app').hidden = false;
+      DATOS = datos;
+      pintar();
+    })
+    .catch(function (err) {
+      $('errLogin').textContent = String((err && err.message) || err);
+      b.disabled = false; b.textContent = 'Entrar';
+    });
+}
+
+(function () {
+  try {
+    var c = sessionStorage.getItem('grun_clave');
+    if (c) { CLAVE = c; $('login').hidden = true; $('app').hidden = false; cargar(); }
+  } catch (e) {}
+})();
+
+$('btnSalir').addEventListener('click', function () {
+  try { sessionStorage.removeItem('grun_clave'); } catch (e) {}
+  location.reload();
+});
+$('btnRefrescar').addEventListener('click', cargar);
+
+/* ===========================================================================
+   Carga
+   =========================================================================== */
+function cargar() {
+  $('sello').innerHTML = '<span class="spin"></span>Cargando…';
+  pedirDatos(CLAVE)
+    .then(function (datos) { DATOS = datos; pintar(); })
+    .catch(function (err) {
+      // Si la clave dejo de servir (se cambio en n8n), volvemos al ingreso.
+      if (err && err.noAutorizado) {
+        try { sessionStorage.removeItem('grun_clave'); } catch (e) {}
+        location.reload();
+        return;
+      }
+      $('sello').textContent = String((err && err.message) || err);
+    });
+}
+
+function pintar() {
+  $('sello').textContent = 'Actualizado ' + DATOS.generado;
+  tiles();
+  canales();
+  propiedades();
+  heat();
+  lista();
+}
+
+/* ===========================================================================
+   Stat tiles — numeros sueltos, sin grafico: es lo que corresponde cuando el
+   dato es una magnitud unica y no una comparacion.
+   =========================================================================== */
+function tiles() {
+  var r = DATOS.resumen || {};
+  var v = DATOS.visitas || {};
+  var inv = DATOS.inventario || {};
+  var seg = r.respuesta_mediana_seg;
+  var tiempo = seg == null ? '—'
+    : (seg < 60 ? [Math.round(seg), '<small>s</small>'].join('')
+                : [Math.round(seg / 60), '<small>min</small>'].join(''));
+
+  // La conversion es el numero que justifica el asistente: de cada persona que
+  // escribio, cuantas terminaron con una visita en el calendario.
+  var conv = (r.clientes > 0 && v.disponible)
+    ? Math.round((v.total / r.clientes) * 100) + '% de quienes consultaron'
+    : 'por el asistente';
+
+  var t = [
+    { n: num(r.clientes),   k: 'Personas que consultaron', sub: 'contactos únicos' },
+    { n: num(r.consultas),  k: 'Consultas recibidas',      sub: 'mensajes entrantes' },
+    { n: inv.disponible ? num(inv.disponibles) : '—', k: 'Unidades disponibles',
+      sub: inv.disponible
+        ? 'de ' + num(inv.total) + ' ' + plural(inv.total, 'cargada', 'cargadas') +
+          (inv.reservadas ? ' · ' + inv.reservadas + ' reservada' + (inv.reservadas === 1 ? '' : 's') : '') +
+          ' · ' + num(r.unidades_ofrecidas) + ' ' +
+          plural(r.unidades_ofrecidas, 'ofrecida', 'ofrecidas')
+        : 'no se pudo leer la planilla' },
+    { n: num(r.fuera_horario), k: 'Fuera de horario',
+      sub: (r.pct_fuera_horario || 0) + '% del total', destaca: true },
+    { n: tiempo, k: 'Tiempo de respuesta', sub: 'mediana', destaca: true, crudo: true },
+    { n: v.disponible ? num(v.total) : '—', k: 'Visitas agendadas',
+      sub: v.disponible
+        ? conv + (v.proximas ? ' · ' + v.proximas + ' por venir' : '')
+        : 'no se pudo leer el calendario',
+      destaca: true }
+  ];
+
+  $('tiles').innerHTML = t.map(function (x) {
+    return '<div class="tile' + (x.destaca ? ' destaca' : '') + '">' +
+      '<div class="n">' + (x.crudo ? x.n : esc(x.n)) + '</div>' +
+      '<div class="k">' + esc(x.k) + '</div>' +
+      '<div class="sub">' + esc(x.sub) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ===========================================================================
+   Barras horizontales. Cada barra lleva su etiqueta y su valor al lado, asi
+   la identidad nunca depende del color solo y no hace falta leyenda aparte.
+   =========================================================================== */
+function barras(cont, filas, colorFn, sufijo) {
+  if (!filas.length) {
+    cont.innerHTML = '<div class="vacio">Todavía no hay datos.</div>';
+    return;
+  }
+  var max = Math.max.apply(null, filas.map(function (f) { return f.valor; })) || 1;
+  cont.innerHTML = filas.map(function (f) {
+    var pct = Math.max(2, (f.valor / max) * 100);
+    var col = colorFn(f);
+    return '<div class="fila" data-tip="' + esc(f.tip || '') + '">' +
+      '<div class="cab">' +
+        '<b><span class="punto" style="background:' + col + '"></span>' + esc(f.nombre) + '</b>' +
+        '<em>' + num(f.valor) + ' ' + esc(sufijo(f.valor)) + '</em>' +
+      '</div>' +
+      '<div class="pista"><div class="marca-barra" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+    '</div>';
+  }).join('');
+  cont.querySelectorAll('.fila').forEach(function (el) {
+    el.addEventListener('mousemove', function (e) { tip(e, el.dataset.tip); });
+    el.addEventListener('mouseleave', ocultarTip);
+  });
+}
+
+function canales() {
+  var filas = (DATOS.por_canal || []).map(function (c) {
+    return {
+      nombre: c.canal.charAt(0).toUpperCase() + c.canal.slice(1),
+      valor: Number(c.consultas),
+      canal: c.canal,
+      tip: '<b>' + c.canal + '</b><br><span>' +
+           c.clientes + ' ' + plural(c.clientes, 'persona', 'personas') + ' · ' +
+           c.consultas + ' ' + plural(c.consultas, 'consulta', 'consultas') + ' · ' +
+           c.respuestas + ' ' + plural(c.respuestas, 'respuesta', 'respuestas') + '</span>'
+    };
+  });
+  barras($('canales'), filas, function (f) {
+    return COLOR_CANAL[f.canal] || 'var(--text-muted)';
+  }, function (v) { return plural(v, 'consulta', 'consultas'); });
+
+  if (filas.length === 1) {
+    $('canales').insertAdjacentHTML('beforeend',
+      '<div class="sub" style="color:var(--text-muted);font-size:11.5px;margin-top:10px">' +
+      'Hoy entra todo por Telegram. Este corte se vuelve útil cuando sumemos WhatsApp e Instagram.</div>');
+  }
+}
+
+function propiedades() {
+  // Una sola medida sobre varias entidades: un solo color. Pintar cada barra
+  // de un color distinto sugeriria categorias que no existen.
+  var filas = (DATOS.por_propiedad || []).map(function (p) {
+    return {
+      nombre: p.ref, valor: Number(p.clientes),
+      tip: '<b>' + esc(p.ref) + '</b><br><span>' + p.clientes + ' ' +
+           plural(p.clientes, 'persona consultó', 'personas consultaron') + '</span>'
+    };
+  });
+  barras($('propiedades'), filas, function () { return 'var(--series-1)'; },
+    function (v) { return plural(v, 'persona', 'personas'); });
+}
+
+/* ===========================================================================
+   Heatmap dia x hora. Magnitud continua => una sola tonalidad, oscuro a claro.
+   =========================================================================== */
+function heat() {
+  var datos = DATOS.por_hora || [];
+  var mapa = {};
+  var max = 0;
+  datos.forEach(function (d) {
+    mapa[d.dia + '_' + d.hora] = d.n;
+    if (d.n > max) max = d.n;
+  });
+
+  var html = '<div></div>';
+  for (var h = 0; h < 24; h++) {
+    html += '<div class="hh">' + (h % 3 === 0 ? h : '') + '</div>';
+  }
+  ORDEN_DIAS.forEach(function (d) {
+    html += '<div class="dd">' + DIAS[d].slice(0, 3) + '</div>';
+    for (var h = 0; h < 24; h++) {
+      var n = mapa[d + '_' + h] || 0;
+      var estilo = '';
+      if (n > 0) {
+        var i = max <= 1 ? RAMPA.length - 1
+              : Math.min(RAMPA.length - 1, Math.floor((n / max) * (RAMPA.length - 1) + 0.5));
+        estilo = 'background:' + RAMPA[i];
+      }
+      html += '<div class="celda' + (n > 0 ? ' v' : '') + '" style="' + estilo + '" ' +
+              'data-tip="<b>' + DIAS[d] + ' ' + h + ':00</b><br><span>' +
+              (n === 0 ? 'sin consultas' : n + ' consulta' + (n === 1 ? '' : 's')) + '</span>"></div>';
+    }
+  });
+  $('heat').innerHTML = html;
+  $('heat').querySelectorAll('.celda').forEach(function (el) {
+    el.addEventListener('mousemove', function (e) { tip(e, el.dataset.tip); });
+    el.addEventListener('mouseleave', ocultarTip);
+  });
+
+  $('escala').innerHTML = '<span>Menos</span>' +
+    RAMPA.map(function (c) { return '<div class="paso" style="background:' + c + '"></div>'; }).join('') +
+    '<span>Más</span>' +
+    '<span style="margin-left:auto">Hora de Argentina</span>';
+}
+
+/* ===========================================================================
+   Conversaciones y transcripción
+   =========================================================================== */
+function lista() {
+  var q = ($('buscar').value || '').toLowerCase().trim();
+  var convs = (DATOS.conversaciones || []).filter(function (c) {
+    if (!q) return true;
+    return ((c.nombre || '') + ' ' + (c.ref_consultada || '') + ' ' + (c.primera_consulta || ''))
+      .toLowerCase().indexOf(q) >= 0;
+  });
+
+  if (!convs.length) {
+    $('lista').innerHTML = '<div class="vacio">Sin conversaciones.</div>';
+    return;
+  }
+
+  $('lista').innerHTML = convs.map(function (c) {
+    var col = COLOR_CANAL[c.canal] || 'var(--text-muted)';
+    return '<button class="item" data-id="' + esc(c.canal + '|' + c.canal_id) + '" ' +
+      'aria-current="' + (ACTIVA === c.canal + '|' + c.canal_id) + '">' +
+      '<div class="nom"><span class="punto" style="background:' + col + '"></span>' +
+        esc(c.nombre || 'Sin nombre') + '</div>' +
+      '<div class="meta">' + esc(c.ultimo_contacto) + ' · ' + c.mensajes_cliente + ' ' +
+        plural(c.mensajes_cliente, 'consulta', 'consultas') +
+        (c.ref_consultada ? ' · ' + esc(c.ref_consultada) : '') + '</div>' +
+      '<div class="prev">' + esc(c.primera_consulta || '') + '</div>' +
+    '</button>';
+  }).join('');
+
+  $('lista').querySelectorAll('.item').forEach(function (el) {
+    el.addEventListener('click', function () { abrir(el.dataset.id); });
+  });
+}
+$('buscar').addEventListener('input', lista);
+
+function abrir(id) {
+  ACTIVA = id;
+  lista();
+  var partes = id.split('|');
+  var msgs = (DATOS.mensajes || []).filter(function (m) {
+    return m.canal === partes[0] && String(m.canal_id) === partes[1];
+  });
+
+  if (!msgs.length) {
+    $('hilo').innerHTML = '<div class="vacio">No hay mensajes guardados de esta conversación.</div>';
+    return;
+  }
+  $('hilo').innerHTML = msgs.map(function (m) {
+    return '<div class="msg ' + (m.rol === 'agente' ? 'agente' : 'cliente') + '">' +
+      '<div class="burbuja">' + formatear(m.mensaje) + '</div>' +
+      '<div class="sello-msg">' + esc(m.hora) +
+        (m.en_horario ? '' : '<span class="fuera">fuera de horario</span>') +
+      '</div>' +
+    '</div>';
+  }).join('');
+  $('hilo').scrollTop = 0;
+}
+
+/* ===========================================================================
+   Tooltip
+   =========================================================================== */
+function tip(e, html) {
+  if (!html) return;
+  var t = $('tip');
+  t.innerHTML = html;
+  t.style.opacity = 1;
+  var x = e.clientX + 14, y = e.clientY + 14;
+  var r = t.getBoundingClientRect();
+  if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - 14;
+  t.style.left = x + 'px';
+  t.style.top = y + 'px';
+}
+function ocultarTip() { $('tip').style.opacity = 0; }
+</script>
+</body>
+</html>
