@@ -95,6 +95,13 @@ button.ghost {
 }
 button.ghost:hover { color: var(--text-primary); border-color: var(--text-muted); filter: none; }
 .error { color: #ff8f8f; font-size: 13px; margin-top: 13px; min-height: 18px; }
+.recordar {
+  display: flex; align-items: center; gap: 9px;
+  margin: 14px 0 0; cursor: pointer; user-select: none;
+}
+.recordar input {
+  width: 15px; height: 15px; margin: 0; cursor: pointer; accent-color: var(--brand);
+}
 
 /* ---------- estructura ---------- */
 #app { max-width: 1180px; margin: 0 auto; padding: 22px 20px 64px; }
@@ -236,6 +243,9 @@ footer { color: var(--text-muted); font-size: 11.5px; text-align: center; paddin
     <p>Lo que respondió el asistente, en tiempo real.</p>
     <label for="clave">Clave de acceso</label>
     <input type="password" id="clave" autocomplete="current-password">
+    <label class="recordar" for="recordar">
+      <input type="checkbox" id="recordar"> Recordarme en este dispositivo
+    </label>
     <div class="error" id="errLogin"></div>
     <button id="btnEntrar" style="width:100%;margin-top:6px">Entrar</button>
   </div>
@@ -351,6 +361,36 @@ function formatear(s) {
 $('btnEntrar').addEventListener('click', entrar);
 $('clave').addEventListener('keydown', function (e) { if (e.key === 'Enter') entrar(); });
 
+/* ---------------------------------------------------------------------------
+   Donde vive la clave.
+
+   Por defecto en sessionStorage: se borra al cerrar la pestaña. Con
+   "Recordarme" pasa a localStorage y sobrevive al cierre del navegador, que es
+   la unica forma de que el cliente no la tipee cada vez. Es su propia maquina y
+   es la misma decision que toma cualquier gestor de contraseñas; "Salir" borra
+   las dos copias.
+   --------------------------------------------------------------------------- */
+function guardarClave(clave, recordar) {
+  try {
+    sessionStorage.removeItem('grun_clave');
+    localStorage.removeItem('grun_clave');
+    (recordar ? localStorage : sessionStorage).setItem('grun_clave', clave);
+  } catch (e) {}
+}
+
+function claveGuardada() {
+  try {
+    return localStorage.getItem('grun_clave') || sessionStorage.getItem('grun_clave');
+  } catch (e) { return null; }
+}
+
+function olvidarClave() {
+  try {
+    sessionStorage.removeItem('grun_clave');
+    localStorage.removeItem('grun_clave');
+  } catch (e) {}
+}
+
 /**
  * Unica llamada a la API. La clave viaja como parametro y la valida n8n;
  * un 401 es "clave incorrecta". Se pide sin headers propios a proposito:
@@ -384,7 +424,7 @@ function entrar() {
   pedirDatos(clave)
     .then(function (datos) {
       CLAVE = clave;
-      try { sessionStorage.setItem('grun_clave', clave); } catch (e) {}
+      guardarClave(clave, $('recordar').checked);
       $('login').hidden = true;
       $('app').hidden = false;
       DATOS = datos;
@@ -397,14 +437,12 @@ function entrar() {
 }
 
 (function () {
-  try {
-    var c = sessionStorage.getItem('grun_clave');
-    if (c) { CLAVE = c; $('login').hidden = true; $('app').hidden = false; cargar(); }
-  } catch (e) {}
+  var c = claveGuardada();
+  if (c) { CLAVE = c; $('login').hidden = true; $('app').hidden = false; cargar(); }
 })();
 
 $('btnSalir').addEventListener('click', function () {
-  try { sessionStorage.removeItem('grun_clave'); } catch (e) {}
+  olvidarClave();
   location.reload();
 });
 $('btnRefrescar').addEventListener('click', cargar);
@@ -419,7 +457,7 @@ function cargar() {
     .catch(function (err) {
       // Si la clave dejo de servir (se cambio en n8n), volvemos al ingreso.
       if (err && err.noAutorizado) {
-        try { sessionStorage.removeItem('grun_clave'); } catch (e) {}
+        olvidarClave();
         location.reload();
         return;
       }
