@@ -466,7 +466,13 @@ function cargar() {
 }
 
 function pintar() {
-  $('sello').textContent = 'Actualizado ' + DATOS.generado;
+  // Ademas de cuando se genero el tablero, cuando se sincronizo el catalogo
+  // contra el CRM. Son cosas distintas: el tablero se arma en el momento, el
+  // catalogo puede tener dias. Mientras la sincronizacion se dispare a mano,
+  // esta fecha es lo unico que delata que el numero de unidades envejecio.
+  var sinc = (DATOS.inventario || {}).ultima_sync;
+  $('sello').textContent = 'Actualizado ' + DATOS.generado +
+    (sinc ? ' · catálogo al ' + sinc : '');
   tiles();
   canales();
   propiedades();
@@ -502,13 +508,18 @@ function tiles() {
   var t = [
     { n: num(r.clientes),   k: 'Personas que consultaron', sub: 'contactos únicos' },
     { n: num(r.consultas),  k: 'Consultas recibidas',      sub: 'mensajes entrantes' },
-    { n: inv.disponible ? num(inv.disponibles) : '—', k: 'Unidades disponibles',
+    // El numero grande son las PROPIAS. El catalogo sale de Xintel, que es de
+    // la red SOW y trae 124 unidades de varias inmobiliarias; mostrar 124 aca
+    // seria decirle al cliente que tiene un inventario que no es suyo. Las de
+    // la red van en el subtitulo, que es donde corresponde: el asistente
+    // tambien las ofrece, pero aclarando de quien son.
+    { n: inv.disponible ? num(inv.propias) : '—', k: 'Unidades propias',
       sub: inv.disponible
-        ? 'de ' + num(inv.total) + ' ' + plural(inv.total, 'cargada', 'cargadas') +
-          (inv.reservadas ? ' · ' + inv.reservadas + ' reservada' + (inv.reservadas === 1 ? '' : 's') : '') +
-          ' · ' + num(r.unidades_ofrecidas) + ' ' +
-          plural(r.unidades_ofrecidas, 'ofrecida', 'ofrecidas')
-        : 'no se pudo leer la planilla' },
+        ? (inv.red ? '+ ' + num(inv.red) + ' de la red del grupo · ' : '') +
+          num(r.unidades_ofrecidas) + ' ' +
+          plural(r.unidades_ofrecidas, 'ofrecida', 'ofrecidas') +
+          (inv.reservadas ? ' · ' + inv.reservadas + ' reservada' + (inv.reservadas === 1 ? '' : 's') : '')
+        : 'no se pudo leer el catálogo' },
     { n: num(r.fuera_horario), k: 'Fuera de horario',
       sub: (r.pct_fuera_horario || 0) + '% del total', destaca: true },
     { n: tiempo, k: 'Tiempo de respuesta', sub: 'mediana', destaca: true, crudo: true },
