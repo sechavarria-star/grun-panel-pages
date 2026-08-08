@@ -28,6 +28,13 @@
   --warning:       #fab219;
 
   --r: 10px;
+
+  /* Las barras de desplazamiento las dibuja el navegador, no el CSS del
+     tablero: sin esta linea las pinta en claro y cortan el panel oscuro por
+     la mitad. `color-scheme` es lo unico que se lo avisa, y de paso arregla
+     los controles nativos (el caret y el autocompletado del campo de clave).
+     Lo de abajo, en .hilo/.lista, solo afina el grosor y el color. */
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -192,6 +199,31 @@ section { margin-bottom: 26px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .hilo { max-height: 520px; overflow-y: auto; padding-right: 4px; }
+
+/* Barra de desplazamiento discreta en los tres paneles que scrollean.
+   La regla estandar (scrollbar-*) la entienden Firefox y Chrome nuevo; la de
+   ::-webkit- cubre Safari y los Chrome viejos. Se dejan las dos porque hacen
+   lo mismo y ninguna sola alcanza para todos. */
+.hilo, .lista, .heat-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.hilo::-webkit-scrollbar,
+.lista::-webkit-scrollbar,
+.heat-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.hilo::-webkit-scrollbar-track,
+.lista::-webkit-scrollbar-track,
+.heat-wrap::-webkit-scrollbar-track { background: transparent; }
+
+.hilo::-webkit-scrollbar-thumb,
+.lista::-webkit-scrollbar-thumb,
+.heat-wrap::-webkit-scrollbar-thumb {
+  background: var(--border); border-radius: 4px;
+}
+.hilo::-webkit-scrollbar-thumb:hover,
+.lista::-webkit-scrollbar-thumb:hover,
+.heat-wrap::-webkit-scrollbar-thumb:hover { background: #3d3d47; }
 /* width:fit-content para que la burbuja se ajuste al texto. Sin esto el div
    ocupa el 84% completo y un "hola" queda con una barra vacia al lado. */
 .msg { margin-bottom: 12px; max-width: 84%; width: fit-content; }
