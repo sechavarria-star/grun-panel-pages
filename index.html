@@ -119,6 +119,9 @@ header.top {
 }
 .top .acciones { display: flex; align-items: center; gap: 10px; }
 .sello { font-size: 12px; color: var(--text-muted); }
+/* El catalogo desactualizado no puede leerse igual que el resto del sello:
+   es la unica pista de que los numeros de arriba envejecieron. */
+.sello-viejo { color: var(--warning); font-weight: 600; }
 
 section { margin-bottom: 26px; }
 .titulo { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
@@ -497,14 +500,41 @@ function cargar() {
     });
 }
 
+// El catalogo lo trae un workflow cada 6 horas. Si esa corrida se cae, los
+// numeros de abajo pasan a ser de otro dia y el tablero los sigue mostrando
+// como si nada. Doce horas son dos corridas perdidas seguidas: ahi ya no es un
+// dato, es un aviso.
+var HORAS_CATALOGO_VIEJO = 12;
+
+// La fecha viene como "08/08/2026 07:56", en hora de Buenos Aires. Se compara
+// contra el reloj del navegador: si alguien abre el tablero desde otro huso, la
+// cuenta se corre por la diferencia. Para un umbral de doce horas no cambia
+// nada, y el equipo mira esto desde Corrientes.
+function horasDesde(txt) {
+  var m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(String(txt || ''));
+  if (!m) return null;
+  var t = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]).getTime();
+  return isFinite(t) ? (Date.now() - t) / 36e5 : null;
+}
+
 function pintar() {
   // Ademas de cuando se genero el tablero, cuando se sincronizo el catalogo
   // contra el CRM. Son cosas distintas: el tablero se arma en el momento, el
-  // catalogo puede tener dias. Mientras la sincronizacion se dispare a mano,
-  // esta fecha es lo unico que delata que el numero de unidades envejecio.
+  // catalogo lo trae el workflow "API xintel".
   var sinc = (DATOS.inventario || {}).ultima_sync;
-  $('sello').textContent = 'Actualizado ' + DATOS.generado +
-    (sinc ? ' · catálogo al ' + sinc : '');
+  var sello = $('sello');
+  sello.textContent = 'Actualizado ' + DATOS.generado;
+  if (sinc) {
+    var horas = horasDesde(sinc);
+    var viejo = horas !== null && horas > HORAS_CATALOGO_VIEJO;
+    var marca = document.createElement('span');
+    marca.textContent = ' · catálogo al ' + sinc + (viejo ? ' — sin actualizar' : '');
+    if (viejo) {
+      marca.className = 'sello-viejo';
+      marca.title = 'Hace ' + Math.floor(horas) + ' horas que no se sincroniza con el CRM.';
+    }
+    sello.appendChild(marca);
+  }
   tiles();
   canales();
   propiedades();
