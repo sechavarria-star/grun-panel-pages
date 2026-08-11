@@ -180,7 +180,15 @@ section { margin-bottom: 26px; }
   aspect-ratio: 1 / 1; border-radius: 3px; background: var(--surface-2);
   border: 1px solid transparent;
 }
-.celda.v { border-color: rgba(255,255,255,.06); }
+.celda.v { border-color: rgba(255,255,255,.06); cursor: pointer; }
+.celda.v:hover { border-color: rgba(255,255,255,.45); }
+.celda:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* Con una celda elegida, el resto se apaga: la seleccion tiene que leerse de
+   un vistazo sobre una rampa que ya es toda del mismo tono. */
+.heat.filtrando .celda { opacity: .3; }
+.heat.filtrando .celda.sel {
+  opacity: 1; outline: 2px solid var(--text-primary); outline-offset: 1px;
+}
 .escala { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
 .escala .paso { width: 17px; height: 9px; border-radius: 2px; }
 
@@ -202,6 +210,22 @@ section { margin-bottom: 26px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .hilo { max-height: 520px; overflow-y: auto; padding-right: 4px; }
+
+/* Cartel del filtro por horario. Sin esto la lista queda recortada y no hay
+   forma de saber por que. */
+.filtro-celda {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  padding: 7px 10px; font-size: 12px; color: var(--text-secondary);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.filtro-celda[hidden] { display: none; }
+.filtro-celda .etq { font-weight: 600; color: var(--text-primary); }
+.filtro-celda .cant { color: var(--text-muted); }
+.filtro-celda .quitar {
+  margin-left: auto; background: transparent; border: 0; color: var(--text-muted);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 5px; border-radius: 5px;
+}
+.filtro-celda .quitar:hover { background: var(--border); color: var(--text-primary); }
 
 /* Barra de desplazamiento discreta en los tres paneles que scrollean.
    La regla estandar (scrollbar-*) la entienden Firefox y Chrome nuevo; la de
@@ -321,10 +345,11 @@ footer { color: var(--text-muted); font-size: 11.5px; text-align: center; paddin
     <div class="escala" id="escala"></div>
   </section>
 
-  <section class="panel">
+  <section class="panel" id="conversaciones">
     <div class="titulo">Conversaciones</div>
     <div class="charla">
       <div>
+        <div class="filtro-celda" id="filtro-celda" hidden></div>
         <input type="search" id="buscar" placeholder="Buscar por nombre o propiedad…" style="margin-bottom:10px">
         <div class="lista" id="lista"></div>
       </div>
@@ -349,6 +374,10 @@ var API_URL = 'https://giwa-ia.app.n8n.cloud/webhook/grun-dashboard';
 var CLAVE = null;
 var DATOS = null;
 var ACTIVA = null;
+// Celda del heatmap elegida, o null. { dia: 0-6, hora: 0-23 }. Filtra la lista
+// de conversaciones; se limpia con un clic afuera, con Escape, o volviendo a
+// hacer clic en la misma celda.
+var CELDA = null;
 
 var DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 var ORDEN_DIAS = [1,2,3,4,5,6,0];              // se lee de lunes a domingo
@@ -518,6 +547,9 @@ function horasDesde(txt) {
 }
 
 function pintar() {
+  // Datos nuevos, filtro viejo no: la celda elegida se refiere a una foto que
+  // ya no es la que esta en pantalla.
+  CELDA = null;
   // Ademas de cuando se genero el tablero, cuando se sincronizo el catalogo
   // contra el CRM. Son cosas distintas: el tablero se arma en el momento, el
   // catalogo lo trae el workflow "API xintel".
@@ -691,15 +723,32 @@ function heat() {
               : Math.min(RAMPA.length - 1, Math.floor((n / max) * (RAMPA.length - 1) + 0.5));
         estilo = 'background:' + RAMPA[i];
       }
-      html += '<div class="celda' + (n > 0 ? ' v' : '') + '" style="' + estilo + '" ' +
+      // Solo las celdas con consultas se pueden elegir: filtrar por una hora
+      // vacia daria una lista vacia y ningun dato nuevo.
+      var elegible = n > 0;
+      var sel = elegible && CELDA && CELDA.dia === d && CELDA.hora === h;
+      html += '<div class="celda' + (elegible ? ' v' : '') + (sel ? ' sel' : '') + '" ' +
+              'style="' + estilo + '" ' +
+              (elegible ? 'role="button" tabindex="0" data-dia="' + d + '" data-hora="' + h + '" ' +
+                          'aria-pressed="' + (sel ? 'true' : 'false') + '" ' : '') +
               'data-tip="<b>' + DIAS[d] + ' ' + h + ':00</b><br><span>' +
               (n === 0 ? 'sin consultas' : n + ' consulta' + (n === 1 ? '' : 's')) + '</span>"></div>';
     }
   });
   $('heat').innerHTML = html;
+  $('heat').className = 'heat' + (CELDA ? ' filtrando' : '');
   $('heat').querySelectorAll('.celda').forEach(function (el) {
     el.addEventListener('mousemove', function (e) { tip(e, el.dataset.tip); });
     el.addEventListener('mouseleave', ocultarTip);
+    if (!el.dataset.dia) return;
+    el.addEventListener('click', function () {
+      elegirCelda(Number(el.dataset.dia), Number(el.dataset.hora));
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();                        // la barra espaciadora scrollea
+      elegirCelda(Number(el.dataset.dia), Number(el.dataset.hora));
+    });
   });
 
   $('escala').innerHTML = '<span>Menos</span>' +
@@ -709,18 +758,67 @@ function heat() {
 }
 
 /* ===========================================================================
+   Filtro por celda del heatmap
+   =========================================================================== */
+// Elegir la misma celda dos veces la apaga: es lo que espera cualquiera que
+// haga clic sin leer nada.
+function elegirCelda(dia, hora) {
+  var mismo = CELDA && CELDA.dia === dia && CELDA.hora === hora;
+  CELDA = mismo ? null : { dia: dia, hora: hora };
+  ocultarTip();
+  heat();
+  lista();
+}
+
+function limpiarCelda() {
+  if (!CELDA) return;
+  CELDA = null;
+  heat();
+  lista();
+}
+
+// Qué conversaciones tuvieron una consulta en ese día y hora. Se resuelve
+// contra dia/h de cada mensaje, que la API calcula con las MISMAS expresiones
+// que el heatmap; y solo cuentan los del cliente, igual que las celdas.
+function convsDeCelda() {
+  if (!CELDA) return null;
+  var ids = {};
+  (DATOS.mensajes || []).forEach(function (m) {
+    if (m.rol !== 'cliente' || m.dia !== CELDA.dia || m.h !== CELDA.hora) return;
+    ids[m.canal + '|' + m.canal_id] = true;
+  });
+  return ids;
+}
+
+/* ===========================================================================
    Conversaciones y transcripción
    =========================================================================== */
 function lista() {
   var q = ($('buscar').value || '').toLowerCase().trim();
+  var deCelda = convsDeCelda();
   var convs = (DATOS.conversaciones || []).filter(function (c) {
+    if (deCelda && !deCelda[c.canal + '|' + c.canal_id]) return false;
     if (!q) return true;
     return ((c.nombre || '') + ' ' + (c.ref_consultada || '') + ' ' + (c.primera_consulta || ''))
       .toLowerCase().indexOf(q) >= 0;
   });
 
+  var cartel = $('filtro-celda');
+  cartel.hidden = !CELDA;
+  if (CELDA) {
+    cartel.innerHTML =
+      '<span class="etq">' + DIAS[CELDA.dia] + ' ' +
+        (CELDA.hora < 10 ? '0' : '') + CELDA.hora + ':00</span>' +
+      '<span class="cant">' + convs.length + ' ' +
+        plural(convs.length, 'conversación', 'conversaciones') + '</span>' +
+      '<button class="quitar" type="button" title="Quitar filtro" ' +
+        'aria-label="Quitar filtro por horario">✕</button>';
+    cartel.querySelector('.quitar').addEventListener('click', limpiarCelda);
+  }
+
   if (!convs.length) {
-    $('lista').innerHTML = '<div class="vacio">Sin conversaciones.</div>';
+    $('lista').innerHTML = '<div class="vacio">' +
+      (CELDA ? 'Ninguna conversación en ese horario.' : 'Sin conversaciones.') + '</div>';
     return;
   }
 
@@ -742,6 +840,24 @@ function lista() {
   });
 }
 $('buscar').addEventListener('input', lista);
+
+// "Clic en otro lado y se borra la selección". Dos excepciones a proposito:
+// la celda -que ya se maneja sola- y el panel de Conversaciones, porque ahi
+// se esta USANDO el filtro (abrir una charla de las que quedaron), no
+// abandonandolo. El cartel tiene su propia ✕ para salir.
+// En CAPTURA, no en burbujeo: abrir una conversacion vuelve a dibujar la lista,
+// asi que para cuando el clic sube hasta aca el boton ya no existe y su
+// closest('#conversaciones') sube por un arbol huerfano y no encuentra nada.
+// En captura corremos antes de que nadie redibuje y el elemento sigue en su
+// lugar.
+document.addEventListener('click', function (e) {
+  if (!CELDA) return;
+  if (e.target.closest('.celda.v') || e.target.closest('#conversaciones')) return;
+  limpiarCelda();
+}, true);
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') limpiarCelda();
+});
 
 function abrir(id) {
   ACTIVA = id;
