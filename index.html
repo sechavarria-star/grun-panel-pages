@@ -164,6 +164,14 @@ section { margin-bottom: 26px; }
 
 /* ---------- barras ---------- */
 .barras { display: flex; flex-direction: column; gap: 2px; }
+/* Con muchas filas la lista empuja todo lo de abajo fuera de la pantalla. El
+   alto lo pone barras() midiendo las filas ya pintadas, no en px fijos: asi no
+   se corta una fila por la mitad si cambia la tipografia. */
+/* overflow-x: hidden es obligatorio, no cosmetico: con overflow-y en auto el
+   navegador computa overflow-x en auto tambien, y basta un subpixel de ancho
+   sobrante para que aparezca una barra horizontal que se come 11px de alto y
+   parte al medio la fila numero 10. */
+.barras.scrollea { overflow-y: auto; overflow-x: hidden; padding-right: 8px; }
 .fila { padding: 5px 0; }
 .fila .cab {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -257,26 +265,30 @@ section { margin-bottom: 26px; }
    La regla estandar (scrollbar-*) la entienden Firefox y Chrome nuevo; la de
    ::-webkit- cubre Safari y los Chrome viejos. Se dejan las dos porque hacen
    lo mismo y ninguna sola alcanza para todos. */
-.hilo, .lista, .heat-wrap {
+.hilo, .lista, .heat-wrap, .barras.scrollea {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 .hilo::-webkit-scrollbar,
 .lista::-webkit-scrollbar,
-.heat-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.heat-wrap::-webkit-scrollbar,
+.barras.scrollea::-webkit-scrollbar { width: 8px; height: 8px; }
 
 .hilo::-webkit-scrollbar-track,
 .lista::-webkit-scrollbar-track,
-.heat-wrap::-webkit-scrollbar-track { background: transparent; }
+.heat-wrap::-webkit-scrollbar-track,
+.barras.scrollea::-webkit-scrollbar-track { background: transparent; }
 
 .hilo::-webkit-scrollbar-thumb,
 .lista::-webkit-scrollbar-thumb,
-.heat-wrap::-webkit-scrollbar-thumb {
+.heat-wrap::-webkit-scrollbar-thumb,
+.barras.scrollea::-webkit-scrollbar-thumb {
   background: var(--border); border-radius: 4px;
 }
 .hilo::-webkit-scrollbar-thumb:hover,
 .lista::-webkit-scrollbar-thumb:hover,
-.heat-wrap::-webkit-scrollbar-thumb:hover { background: #3d3d47; }
+.heat-wrap::-webkit-scrollbar-thumb:hover,
+.barras.scrollea::-webkit-scrollbar-thumb:hover { background: #3d3d47; }
 /* width:fit-content para que la burbuja se ajuste al texto. Sin esto el div
    ocupa el 84% completo y un "hola" queda con una barra vacia al lado. */
 .msg { margin-bottom: 12px; max-width: 84%; width: fit-content; }
@@ -753,7 +765,9 @@ function tiles() {
    Barras horizontales. Cada barra lleva su etiqueta y su valor al lado, asi
    la identidad nunca depende del color solo y no hace falta leyenda aparte.
    =========================================================================== */
-function barras(cont, filas, colorFn, sufijo) {
+function barras(cont, filas, colorFn, sufijo, verMax) {
+  cont.classList.remove('scrollea');
+  cont.style.maxHeight = '';
   if (!filas.length) {
     cont.innerHTML = '<div class="vacio">Todavía no hay datos.</div>';
     return;
@@ -770,10 +784,20 @@ function barras(cont, filas, colorFn, sufijo) {
       '<div class="pista"><div class="marca-barra" style="width:' + pct + '%;background:' + col + '"></div></div>' +
     '</div>';
   }).join('');
-  cont.querySelectorAll('.fila').forEach(function (el) {
+  var pintadas = cont.querySelectorAll('.fila');
+  pintadas.forEach(function (el) {
     el.addEventListener('mousemove', function (e) { tip(e, el.dataset.tip); });
     el.addEventListener('mouseleave', ocultarTip);
   });
+
+  // Se muestran las primeras `verMax` y el resto queda a un scroll. El alto se
+  // mide sobre las filas ya pintadas -- la distancia entre la primera y la que
+  // sobra -- en vez de estimarlo en px: asi el corte cae siempre entre dos
+  // filas, aunque cambie el tamano de letra.
+  if (verMax && pintadas.length > verMax) {
+    cont.style.maxHeight = (pintadas[verMax].offsetTop - pintadas[0].offsetTop) + 'px';
+    cont.classList.add('scrollea');
+  }
 }
 
 function canales() {
@@ -814,8 +838,10 @@ function propiedades() {
            plural(p.clientes, 'persona', 'personas') + '</span>'
     };
   });
+  // Son ~45 refs: pintadas todas de una, el panel de al lado queda a media
+  // pantalla de distancia. Se ven las 10 mas ofrecidas y el resto se scrollea.
   barras($('propiedades'), filas, function () { return 'var(--series-1)'; },
-    function (v) { return plural(v, 'persona', 'personas'); });
+    function (v) { return plural(v, 'persona', 'personas'); }, 10);
 }
 
 /* ===========================================================================
