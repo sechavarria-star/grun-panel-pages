@@ -27,6 +27,7 @@
   --good:          #0ca30c;
   --warning:       #fab219;
   --wa:            #25D366;   /* verde real de WhatsApp, solo para el boton de contactar */
+  --ig:            #C13584;   /* magenta de Instagram, mismo uso: solo el boton */
 
   --r: 10px;
 
@@ -349,6 +350,9 @@ section { margin-bottom: 26px; }
   padding: 0 13px; font-size: 12px; font-weight: 650; cursor: pointer; text-decoration: none;
 }
 .btn-wa:hover { filter: brightness(1.08); color: #fff; }
+/* El mismo boton para Instagram. Cambia el color porque el verde de WhatsApp
+   sobre un contacto de Instagram se lee como el canal equivocado. */
+.btn-wa.ig { background: var(--ig); }
 .sin-contacto { font-size: 11.5px; color: var(--text-muted); flex: none; padding-top: 4px; }
 
 /* ---------- tooltip ---------- */
@@ -489,6 +493,7 @@ var CANAL_LABEL = { telegram: 'Telegram', whatsapp: 'WhatsApp', instagram: 'Inst
 // Icono de telefono para "Contactar". Un solo trazo, para que si se suman mas
 // iconos despues tengan con que hacer juego.
 var ICONO_TEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+var ICONO_IG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/></svg>';
 
 // Rampa secuencial azul, de oscuro (casi nada) a claro (mucho). Va en ese
 // sentido porque la superficie es oscura: el paso mas bajo tiene que fundirse
@@ -1006,9 +1011,32 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') limpiarCelda();
 });
 
+// Por donde se le escribe a esta persona desde el panel.
+//
+// En WhatsApp el canal_id ES el telefono. En Instagram no hay telefono -y el
+// equipo contesta por el mismo DM-, pero el @usuario arma un link directo a esa
+// conversacion. Telegram se queda sin link: su id es interno y no existe una URL
+// publica que se pueda armar con el.
+//
+// Devuelve null cuando no hay forma de escribirle: quien llama decide que
+// mostrar en su lugar.
+function contactoDe(c) {
+  if (c.canal === 'whatsapp') {
+    var d = String(c.canal_id || '').replace(/\D/g, '');
+    if (!d) return null;
+    return { href: 'https://wa.me/' + d, etiqueta: 'Escribir', icono: ICONO_TEL,
+             texto: formatTelefono(d), clase: 'btn-wa' };
+  }
+  if (c.canal === 'instagram') {
+    var u = String(c.username || '').replace(/^@/, '');
+    if (!u) return null;   // el perfil no se pudo resolver: solo queda el IGSID
+    return { href: 'https://ig.me/m/' + u, etiqueta: 'Abrir DM', icono: ICONO_IG,
+             texto: '@' + u, clase: 'btn-wa ig' };
+  }
+  return null;
+}
+
 // Con quien estas hablando y como escribirle, sin pasar por la pestaña Clientes.
-// En WhatsApp el canal_id ES el telefono; en Telegram e Instagram es un id
-// interno que no sirve para armar un wa.me, asi que ahi no se ofrece el boton.
 function cabecera(canal, canalId) {
   var cab = $('hilo-cab');
   var c = (DATOS.conversaciones || []).filter(function (x) {
@@ -1016,10 +1044,9 @@ function cabecera(canal, canalId) {
   })[0];
   if (!c) { cab.hidden = true; return; }
 
-  var esWa = c.canal === 'whatsapp';
-  var digitos = esWa ? String(c.canal_id || '').replace(/\D/g, '') : '';
-  var contacto = esWa && digitos
-    ? '<div class="tel">' + ICONO_TEL + esc(formatTelefono(digitos)) + '</div>'
+  var ct = contactoDe(c);
+  var contacto = ct
+    ? '<div class="tel">' + ct.icono + esc(ct.texto) + '</div>'
     : '<div class="tel">' + esc(CANAL_LABEL[c.canal] || c.canal) +
       (c.username ? ' · ' + esc(c.username) : '') + '</div>';
 
@@ -1028,9 +1055,9 @@ function cabecera(canal, canalId) {
       '<div class="nom">' + esc(c.nombre || 'Sin nombre') + '</div>' +
       contacto +
     '</div>' +
-    (esWa && digitos
-      ? '<a class="btn-wa" href="https://wa.me/' + digitos + '" target="_blank" rel="noopener">' +
-        ICONO_TEL + ' Escribir</a>'
+    (ct
+      ? '<a class="' + ct.clase + '" href="' + esc(ct.href) + '" target="_blank" rel="noopener">' +
+        ct.icono + ' ' + ct.etiqueta + '</a>'
       : '');
   cab.hidden = false;
 }
@@ -1071,21 +1098,24 @@ function clientes() {
   var todos = (DATOS.conversaciones || []).map(function (c) {
     var esWhatsapp = c.canal === 'whatsapp';
     var nombre = c.nombre || 'Sin nombre';
+    var ct = contactoDe(c);
     return {
       nombre: nombre,
       iniciales: iniciales(nombre) || '?',
       canalColor: COLOR_CANAL[c.canal] || 'var(--text-muted)',
       canalLabel: CANAL_LABEL[c.canal] || c.canal || '',
-      esWhatsapp: esWhatsapp,
-      // Solo WhatsApp trae un numero real (canal_id). Telegram/Instagram
-      // traen un @usuario, que no sirve para armar un link de wa.me.
-      contacto: esWhatsapp ? formatTelefono(c.canal_id) : (c.username || 'Sin usuario'),
+      // Solo WhatsApp trae un numero real (canal_id). En Instagram el contacto
+      // es el @usuario, y con eso alcanza para abrirle el DM.
+      contacto: ct ? ct.texto : (c.username || 'Sin usuario'),
       // Solo los digitos, sin formato: es contra esto que se busca por
       // telefono. El numero formateado ("+54 9 3794 35-7488") tiene espacios
       // y un guion que le cortan a la mitad cualquier tira de digitos que
       // alguien tipee de corrido.
       telDigits: esWhatsapp ? String(c.canal_id || '').replace(/\D/g, '') : '',
-      href: esWhatsapp ? 'https://wa.me/' + String(c.canal_id || '').replace(/\D/g, '') : '',
+      href: ct ? ct.href : '',
+      accionEtiqueta: ct ? ct.etiqueta : '',
+      accionIcono: ct ? ct.icono : '',
+      accionClase: ct ? ct.clase : '',
       ultimo: c.ultimo_contacto || '',
       ref: c.ref_consultada || ''
     };
@@ -1109,8 +1139,9 @@ function clientes() {
   }
 
   $('clientesGrid').innerHTML = visibles.map(function (c) {
-    var accion = c.esWhatsapp
-      ? '<a class="btn-wa" href="' + esc(c.href) + '" target="_blank" rel="noopener">' + ICONO_TEL + ' Contactar</a>'
+    var accion = c.href
+      ? '<a class="' + c.accionClase + '" href="' + esc(c.href) + '" target="_blank" rel="noopener">' +
+        c.accionIcono + ' ' + esc(c.accionEtiqueta) + '</a>'
       : '<span class="sin-contacto">Solo por ' + esc(c.canalLabel) + '</span>';
     var chip = c.ref
       ? '<span class="chip-prop">' + esc(c.ref) + '</span>'
