@@ -471,6 +471,7 @@ footer { color: var(--text-muted); font-size: 11.5px; text-align: center; paddin
       <div class="titulo">Conversaciones</div>
       <div class="charla">
         <div>
+          <div class="chips" id="chipsCanal"></div>
           <div class="chips" id="chipsOper"></div>
           <div class="chips" id="chipsOrigen"></div>
           <div class="filtro-celda" id="filtro-celda" hidden></div>
@@ -524,6 +525,7 @@ var CELDA = null;
 // con Y: elegir una celda del heatmap y despues "Alquiler" deja las de esa hora
 // que ademas son de alquiler.
 var REF = null;      // REF de propiedad elegida en las barras, o null
+var CANAL = null;    // 'whatsapp' | 'instagram' | 'telegram'
 var OPER = null;     // 'compra' | 'alquiler' | 'vende' | 'sin_determinar'
 var ORIGEN = null;   // 'pauta' | 'espontanea'
 
@@ -729,7 +731,7 @@ function horasDesde(txt) {
 function pintar() {
   // Datos nuevos, filtro viejo no: la celda elegida se refiere a una foto que
   // ya no es la que esta en pantalla. Vale igual para los otros tres.
-  CELDA = null; REF = null; OPER = null; ORIGEN = null;
+  CELDA = null; REF = null; CANAL = null; OPER = null; ORIGEN = null;
   // Ademas de cuando se genero el tablero, cuando se sincronizo el catalogo
   // contra el CRM. Son cosas distintas: el tablero se arma en el momento, el
   // catalogo lo trae el workflow "API xintel".
@@ -1043,12 +1045,19 @@ function convsDeRef() {
   return ids;
 }
 
+function elegirCanal(v)  { CANAL = (CANAL === v) ? null : v;      chips(); lista(); }
 function elegirOper(v)   { OPER = (OPER === v) ? null : v;       chips(); lista(); }
 function elegirOrigen(v) { ORIGEN = (ORIGEN === v) ? null : v;   chips(); lista(); }
 
 // Los chips salen de los cortes que manda la API, no de una lista escrita acá:
 // si mañana aparece una categoría nueva se dibuja sola, sin tocar el panel.
+//
+// Canal usa `por_canal_conv` y NO `por_canal`: el segundo cuenta mensajes y
+// estos chips filtran conversaciones. Un chip que dice 99 sobre una lista de 60
+// hace dudar de todo el panel.
 function chips() {
+  pintarChips($('chipsCanal'), 'Canal', DATOS.por_canal_conv || [], 'canal',
+              CANAL_LABEL, CANAL, elegirCanal);
   pintarChips($('chipsOper'), 'Operación', DATOS.por_operacion || [], 'operacion',
               OPER_LABEL, OPER, elegirOper);
   pintarChips($('chipsOrigen'), 'Origen', DATOS.por_origen || [], 'origen',
@@ -1072,8 +1081,8 @@ function pintarChips(cont, titulo, filas, campo, labels, activo, alClic) {
 // Apaga los cuatro filtros de un clic. No toca lo que haya escrito en el
 // buscador: eso lo tipeó la persona y no es algo que se prendió sin querer.
 function limpiarTodo() {
-  if (!CELDA && !REF && !OPER && !ORIGEN) return;
-  CELDA = null; REF = null; OPER = null; ORIGEN = null;
+  if (!CELDA && !REF && !CANAL && !OPER && !ORIGEN) return;
+  CELDA = null; REF = null; CANAL = null; OPER = null; ORIGEN = null;
   heat(); propiedades(); chips(); lista();
 }
 
@@ -1091,6 +1100,7 @@ function lista() {
     var id = c.canal + '|' + c.canal_id;
     if (deCelda && !deCelda[id]) return false;
     if (deRef && !deRef[id]) return false;
+    if (CANAL && c.canal !== CANAL) return false;
     if (OPER && c.operacion !== OPER) return false;
     if (ORIGEN && c.origen !== ORIGEN) return false;
     if (!q) return true;
@@ -1107,6 +1117,7 @@ function lista() {
     quitar: limpiarCelda
   });
   if (REF)    activos.push({ etq: REF, quitar: function () { elegirRef(REF); } });
+  if (CANAL)  activos.push({ etq: CANAL_LABEL[CANAL] || CANAL, quitar: function () { elegirCanal(CANAL); } });
   if (OPER)   activos.push({ etq: OPER_LABEL[OPER] || OPER, quitar: function () { elegirOper(OPER); } });
   if (ORIGEN) activos.push({ etq: ORIGEN_LABEL[ORIGEN] || ORIGEN, quitar: function () { elegirOrigen(ORIGEN); } });
 
