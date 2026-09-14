@@ -286,6 +286,10 @@ section { margin-bottom: 26px; }
   border: 1px solid var(--border); color: var(--text-secondary);
 }
 .tag.pauta { border-color: rgba(217,89,38,.5); color: #e8845c; }
+/* El titulo del anuncio puede ser largo ("Depto San Lorenzo 1131 · 46 m²"):
+   se corta con puntos suspensivos para no romper la fila, y el texto completo
+   queda en el title al pasar el mouse. */
+.tag.aviso { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Barras clickeables (propiedades). Mismo lenguaje que el heatmap: con una
    elegida, las demas se apagan para que la seleccion se lea de un vistazo. */
@@ -1192,6 +1196,11 @@ function lista() {
                     esc(ORIGEN_LABEL[c.origen] || c.origen) + '</span>' : '') +
         (c.operacion ? '<span class="tag">' + esc(OPER_LABEL[c.operacion] || c.operacion) +
                        '</span>' : '') +
+        // El anuncio de Meta por el que llego. Solo existe para las charlas que
+        // entraron tocando un anuncio de WhatsApp desde que se guarda el dato:
+        // las anteriores no lo tienen y no muestran nada.
+        (c.aviso ? '<span class="tag aviso" title="' + esc(c.aviso) + '">📣 ' +
+                   esc(c.aviso) + '</span>' : '') +
       '</div>' +
     '</button>';
   }).join('');
