@@ -3,6 +3,9 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<!-- Sin esto el celular dibuja la pagina a 980px y la achica: ningun @media de
+     abajo llega a aplicarse. En Apps Script lo ponia el wrapper del /exec. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 /* ---------------------------------------------------------------------------
    Tokens. El azul de marca (#1668ff) es SOLO cromo: botones, foco, el aro del
@@ -28,6 +31,7 @@
   --warning:       #fab219;
   --wa:            #25D366;   /* verde real de WhatsApp, solo para el boton de contactar */
   --ig:            #C13584;   /* magenta de Instagram, mismo uso: solo el boton */
+  --link:          #8ab6f5;   /* links sobre superficie oscura (ficha de la propiedad) */
 
   --r: 10px;
 
@@ -393,6 +397,50 @@ section { margin-bottom: 26px; }
 .btn-wa.ig { background: var(--ig); }
 .sin-contacto { font-size: 11.5px; color: var(--text-muted); flex: none; padding-top: 4px; }
 
+/* ---------- agenda ---------- */
+/* Una fila por visita: hora | quien | que propiedad | acciones. Reusa la
+   tarjeta, el avatar, el chip de propiedad y el boton de contacto de Clientes. */
+.ayuda { font-size: 12.5px; color: var(--text-muted); margin: -4px 0 14px; }
+.agenda-dia {
+  display: flex; align-items: center; gap: 8px; margin: 22px 0 10px;
+  font-size: 13px; font-weight: 650; color: var(--text-secondary);
+}
+.agenda-dia:first-child { margin-top: 4px; }
+.visitas-dia { display: flex; flex-direction: column; gap: 10px; }
+.visita {
+  display: grid; grid-template-columns: 96px minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  gap: 18px; align-items: center;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 14px 16px;
+}
+.visita.pasada { opacity: .62; }
+.visita .hora { font-size: 21px; font-weight: 680; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.visita .hora small { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-muted); letter-spacing: 0; margin-top: 3px; }
+.visita .quien { display: flex; gap: 12px; min-width: 0; }
+.visita .quien-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.visita .nombre { font-weight: 650; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visita .contacto { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.visita .nota { font-size: 12px; color: var(--text-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.visita .prop { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.visita .prop .dir { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visita .prop .sub { font-size: 12px; color: var(--text-secondary); }
+.visita .prop .refs { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.visita .prop .chip-prop { margin-top: 0; }
+.link-ficha { font-size: 12px; color: var(--link); text-decoration: none; }
+.link-ficha:hover { color: var(--text-primary); }
+.tag.reservada { border-color: var(--warning); color: var(--warning); }
+.visita .acc { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.visita .acc .btn-wa, .visita .acc button.ghost { height: 36px; font-size: 12px; padding: 0 13px; white-space: nowrap; }
+/* Angosto: la hora pasa a ser una linea arriba y el resto usa todo el ancho. */
+@media (max-width: 860px) {
+  .visita { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .visita .hora { font-size: 18px; }
+  .visita .hora small { display: inline; margin: 0 0 0 6px; }
+  .visita .contacto { white-space: nowrap; }
+  .visita .acc { flex-direction: row; }
+  .visita .acc > * { flex: 1; }
+}
+
 /* ---------- tooltip ---------- */
 #tip {
   position: fixed; z-index: 50; pointer-events: none; opacity: 0;
@@ -446,6 +494,7 @@ footer { color: var(--text-muted); font-size: 11.5px; text-align: center; paddin
   <div class="tabs">
     <button class="tab activo" id="tabResumenBtn" type="button">Resumen</button>
     <button class="tab" id="tabClientesBtn" type="button">Clientes</button>
+    <button class="tab" id="tabAgendaBtn" type="button">Agenda</button>
   </div>
 
   <div id="vistaResumen">
@@ -503,6 +552,15 @@ footer { color: var(--text-muted); font-size: 11.5px; text-align: center; paddin
         <span class="cant-clientes" id="cantClientes"></span>
       </div>
       <div class="grid-clientes" id="clientesGrid"></div>
+    </section>
+  </div>
+
+  <div id="vistaAgenda" hidden>
+    <section class="panel">
+      <div class="titulo">Agenda de visitas</div>
+      <p class="ayuda">Solo las visitas que agendó el asistente. El resto de los eventos del calendario no aparece acá.</p>
+      <div class="chips" id="chipsAgenda"></div>
+      <div id="agendaLista"></div>
     </section>
   </div>
 
@@ -782,6 +840,7 @@ function pintar() {
   chips();
   lista();
   clientes();
+  agenda();
 }
 
 /* ===========================================================================
@@ -1397,15 +1456,178 @@ function clientes() {
 }
 $('buscarClientes').addEventListener('input', clientes);
 
+/* ===========================================================================
+   Agenda — las visitas que agendo el asistente, y solo esas. La API las
+   reconoce por el ID que arma agendar_visita ('v' + fecha y hora), asi que los
+   recordatorios que el equipo carga en el mismo calendario no aparecen.
+   De cada visita: quien (cruzado con su conversacion por el chat), que
+   propiedad (la REF del titulo, o la que consulto en la charla) y como
+   escribirle o leer la charla completa.
+   =========================================================================== */
+var AGENDA_VISTA = 'proximas';   // 'proximas' | 'pasadas'
+var AGENDA_LABEL = { proximas: 'Próximas', pasadas: 'Pasadas (30 días)' };
+
+// Argentina no tiene horario de verano: UTC-3 fijo, igual que en los workflows.
+// Se corre el instante tres horas y se leen los campos UTC, asi la hora que se
+// ve es la de Buenos Aires aunque el panel se abra desde otro huso.
+function enBA(iso) {
+  var d = new Date(new Date(iso).getTime() - 3 * 3600000);
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate(), dow: d.getUTCDay(),
+           hhmm: String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0') };
+}
+function claveDia(p) { return p.y + '-' + p.m + '-' + p.d; }
+
+function etiquetaDia(p) {
+  var hoy = enBA(new Date().toISOString());
+  var dif = Math.round((Date.UTC(p.y, p.m, p.d) - Date.UTC(hoy.y, hoy.m, hoy.d)) / 86400000);
+  var rel = dif === 0 ? 'Hoy' : dif === 1 ? 'Mañana' : dif === -1 ? 'Ayer' : '';
+  return DIAS[p.dow] + ' ' + String(p.d).padStart(2, '0') + '/' + String(p.m + 1).padStart(2, '0') +
+    (rel ? ' <span class="tag">' + rel + '</span>' : '');
+}
+
+// La conversacion de quien agendo. agendar_visita guarda el chat en la marca
+// [chat:ID], que es el canal_id de la charla.
+function convDeVisita(v) {
+  if (!v.chat_id) return null;
+  return (DATOS.conversaciones || []).filter(function (c) {
+    return String(c.canal_id) === String(v.chat_id);
+  })[0] || null;
+}
+
+// El titulo lo arma el agente como "Visita SOW11 - Nombre": si no hay charla
+// cruzada, el nombre sale de ahi.
+function nombreDeTitulo(t) {
+  var partes = String(t || '').split(' - ');
+  return partes.length > 1 ? partes.slice(1).join(' - ').trim() : '';
+}
+
+function verChat(id) {
+  mostrarTab('resumen');
+  abrir(id);
+  $('conversaciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function agenda() {
+  var todas = DATOS.agenda || [];
+  var ahora = Date.now();
+  var grupos = {
+    proximas: todas.filter(function (v) { return new Date(v.fin || v.inicio).getTime() >= ahora; }),
+    // Las pasadas de la mas reciente a la mas vieja: lo que interesa es lo que
+    // acaba de pasar.
+    pasadas: todas.filter(function (v) { return new Date(v.fin || v.inicio).getTime() < ahora; }).reverse()
+  };
+
+  $('chipsAgenda').innerHTML = ['proximas', 'pasadas'].map(function (k) {
+    return '<button type="button" class="chip' + (AGENDA_VISTA === k ? ' on' : '') + '" data-v="' + k + '" ' +
+      'aria-pressed="' + (AGENDA_VISTA === k) + '">' + AGENDA_LABEL[k] +
+      '<span class="n">' + grupos[k].length + '</span></button>';
+  }).join('');
+  $('chipsAgenda').querySelectorAll('.chip').forEach(function (el) {
+    el.addEventListener('click', function () { AGENDA_VISTA = el.dataset.v; agenda(); });
+  });
+
+  if (DATOS.agenda_disponible === false) {
+    $('agendaLista').innerHTML = '<div class="vacio">No se pudo leer el calendario. Probá con Actualizar en un rato.</div>';
+    return;
+  }
+  var visitas = grupos[AGENDA_VISTA];
+  if (!visitas.length) {
+    $('agendaLista').innerHTML = '<div class="vacio">' + (AGENDA_VISTA === 'proximas'
+      ? 'No hay visitas agendadas por el asistente de acá en adelante.'
+      : 'No hubo visitas agendadas por el asistente en los últimos 30 días.') + '</div>';
+    return;
+  }
+
+  var html = '';
+  var diaActual = null;
+  visitas.forEach(function (v) {
+    var p = enBA(v.inicio);
+    if (claveDia(p) !== diaActual) {
+      if (diaActual !== null) html += '</div>';
+      diaActual = claveDia(p);
+      html += '<div class="agenda-dia">' + etiquetaDia(p) + '</div><div class="visitas-dia">';
+    }
+    html += filaVisita(v, p, AGENDA_VISTA === 'pasadas');
+  });
+  html += '</div>';
+  $('agendaLista').innerHTML = html;
+
+  $('agendaLista').querySelectorAll('[data-chat]').forEach(function (el) {
+    el.addEventListener('click', function () { verChat(el.dataset.chat); });
+  });
+}
+
+function filaVisita(v, p, pasada) {
+  var c = convDeVisita(v);
+  var nombre = (c && c.nombre) || nombreDeTitulo(v.titulo) || 'Sin nombre';
+  var ct = c ? contactoDe(c) : null;
+  var canalColor = c ? (COLOR_CANAL[c.canal] || 'var(--text-muted)') : 'var(--text-muted)';
+
+  var contacto = ct ? ct.texto : (c ? (CANAL_LABEL[c.canal] || c.canal) + (c.username ? ' · ' + c.username : '') : '');
+  var tags = [];
+  if (c && c.canal) tags.push('<span class="tag">' + esc(CANAL_LABEL[c.canal] || c.canal) + '</span>');
+  if (c && c.forma_pago && c.forma_pago !== 'sin_dato') tags.push('<span class="tag">' + esc(PAGO_LABEL[c.forma_pago] || c.forma_pago) + '</span>');
+  if (c && c.urgencia && c.urgencia !== 'sin_dato') tags.push('<span class="tag">' + esc(URGENCIA_LABEL[c.urgencia] || c.urgencia) + '</span>');
+
+  // La propiedad: la REF que nombra la cita, y si no nombra ninguna, la que la
+  // persona consulto en la charla.
+  var refs = (v.refs && v.refs.length) ? v.refs : (c && c.ref_consultada && c.ref_consultada !== 'sin identificar' ? [c.ref_consultada] : []);
+  var fichas = DATOS.fichas || {};
+  var ref = refs[0];
+  var f = ref ? fichas[ref] : null;
+  var prop;
+  if (f) {
+    var sub = [f.barrio, f.tipologia, f.dormitorios ? f.dormitorios + ' dorm.' : ''].filter(Boolean).join(' · ');
+    prop =
+      '<div class="refs">' + refs.map(function (r) { return '<span class="chip-prop">' + esc(r) + '</span>'; }).join('') +
+        (f.reservada ? '<span class="tag reservada">Reservada</span>' : '') + '</div>' +
+      '<div class="dir" title="' + esc(f.direccion || '') + '">' + esc(f.direccion || ref) + '</div>' +
+      (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') +
+      '<div class="sub">' + (f.precio ? esc(f.precio) + ' · ' : '') +
+        (f.ficha_url ? '<a class="link-ficha" href="' + esc(f.ficha_url) + '" target="_blank" rel="noopener">Ver ficha ↗</a>' : '') +
+      '</div>';
+  } else if (refs.length) {
+    prop = '<div class="refs">' + refs.map(function (r) { return '<span class="chip-prop">' + esc(r) + '</span>'; }).join('') + '</div>';
+  } else {
+    prop = '<span class="chip-prop vacia">Sin propiedad puntual</span>';
+  }
+
+  var acciones =
+    (c ? '<button type="button" class="ghost" data-chat="' + esc(c.canal + '|' + c.canal_id) + '">Ver chat</button>' : '') +
+    (ct ? '<a class="' + ct.clase + '" href="' + esc(ct.href) + '" target="_blank" rel="noopener">' + ct.icono + ' ' + esc(ct.etiqueta) + '</a>' : '');
+  if (!acciones) acciones = '<span class="sin-contacto">Sin chat asociado</span>';
+
+  var fin = v.fin ? enBA(v.fin).hhmm : '';
+  return (
+    '<div class="visita' + (pasada ? ' pasada' : '') + '">' +
+      '<div class="hora">' + esc(p.hhmm) + (fin ? '<small>hasta ' + esc(fin) + '</small>' : '') + '</div>' +
+      '<div class="quien">' +
+        '<div class="avatar">' + esc(iniciales(nombre) || '?') +
+          '<span class="punto-canal" style="background:' + canalColor + '"></span></div>' +
+        '<div class="quien-body">' +
+          '<div class="nombre">' + esc(nombre) + '</div>' +
+          (contacto ? '<div class="contacto">' + esc(contacto) + '</div>' : '') +
+          (tags.length ? '<div class="tags">' + tags.join('') + '</div>' : '') +
+          (v.detalle ? '<div class="nota" title="' + esc(v.detalle) + '">' + esc(v.detalle) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="prop">' + prop + '</div>' +
+      '<div class="acc">' + acciones + '</div>' +
+    '</div>'
+  );
+}
+
+var VISTAS = { resumen: ['vistaResumen', 'tabResumenBtn'], clientes: ['vistaClientes', 'tabClientesBtn'],
+               agenda: ['vistaAgenda', 'tabAgendaBtn'] };
 function mostrarTab(cual) {
-  var esResumen = cual === 'resumen';
-  $('vistaResumen').hidden = !esResumen;
-  $('vistaClientes').hidden = esResumen;
-  $('tabResumenBtn').classList.toggle('activo', esResumen);
-  $('tabClientesBtn').classList.toggle('activo', !esResumen);
+  Object.keys(VISTAS).forEach(function (k) {
+    $(VISTAS[k][0]).hidden = k !== cual;
+    $(VISTAS[k][1]).classList.toggle('activo', k === cual);
+  });
 }
 $('tabResumenBtn').addEventListener('click', function () { mostrarTab('resumen'); });
 $('tabClientesBtn').addEventListener('click', function () { mostrarTab('clientes'); });
+$('tabAgendaBtn').addEventListener('click', function () { mostrarTab('agenda'); });
 
 /* ===========================================================================
    Tooltip
