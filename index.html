@@ -795,15 +795,16 @@ function cargar() {
     });
 }
 
-// El catalogo lo trae un workflow cada 6 horas. Si esa corrida se cae, los
+// El catalogo lo trae el workflow "API xintel" una vez por dia, a las 00:15
+// (desde el 05/11/2026; antes, una vez por semana). Si esa corrida se cae, los
 // numeros de abajo pasan a ser de otro dia y el tablero los sigue mostrando
-// como si nada. Doce horas son dos corridas perdidas seguidas: ahi ya no es un
-// dato, es un aviso.
-var HORAS_CATALOGO_VIEJO = 12;
+// como si nada. Treinta horas son una noche salteada con margen: ahi ya no es
+// un dato, es un aviso. Con doce se prendia todos los dias despues del mediodia.
+var HORAS_CATALOGO_VIEJO = 30;
 
 // La fecha viene como "08/08/2026 07:56", en hora de Buenos Aires. Se compara
 // contra el reloj del navegador: si alguien abre el tablero desde otro huso, la
-// cuenta se corre por la diferencia. Para un umbral de doce horas no cambia
+// cuenta se corre por la diferencia. Para un umbral de treinta horas no cambia
 // nada, y el equipo mira esto desde Corrientes.
 function horasDesde(txt) {
   var m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(String(txt || ''));
